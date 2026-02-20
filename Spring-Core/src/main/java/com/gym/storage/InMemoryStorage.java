@@ -1,12 +1,16 @@
 package com.gym.storage;
 
-import com.gym.model.*;
+import com.gym.model.Trainee;
+import com.gym.model.Trainer;
+import com.gym.model.Training;
+import lombok.Getter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
+@Getter
 @Component
 public class InMemoryStorage {
 
@@ -29,7 +33,4 @@ public class InMemoryStorage {
         this.trainingStorage = trainingStorage;
     }
 
-    public Map<Long, Trainee>  getTraineeStorage()  { return traineeStorage; }
-    public Map<Long, Trainer>  getTrainerStorage()  { return trainerStorage; }
-    public Map<Long, Training> getTrainingStorage() { return trainingStorage; }
 }

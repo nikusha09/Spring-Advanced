@@ -3,8 +3,7 @@ package com.gym.dao.impl;
 import com.gym.dao.TraineeDao;
 import com.gym.model.Trainee;
 import com.gym.storage.InMemoryStorage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
@@ -13,10 +12,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
+@Slf4j
 @Repository
 public class TraineeDaoImpl implements TraineeDao {
-
-    private static final Logger log = LoggerFactory.getLogger(TraineeDaoImpl.class);
 
     private Map<Long, Trainee> storage;
     // autoincrement ID generator

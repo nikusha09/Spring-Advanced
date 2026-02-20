@@ -4,18 +4,16 @@ import com.gym.dao.TraineeDao;
 import com.gym.model.Trainee;
 import com.gym.service.TraineeService;
 import com.gym.util.UsernamePasswordGenerator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Service
 public class TraineeServiceImpl implements TraineeService {
-
-    private static final Logger log = LoggerFactory.getLogger(TraineeServiceImpl.class);
 
     private TraineeDao dao;
     private UsernamePasswordGenerator generator;

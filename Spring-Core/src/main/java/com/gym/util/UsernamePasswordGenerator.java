@@ -1,16 +1,14 @@
 package com.gym.util;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.security.SecureRandom;
 import java.util.Collection;
 
+@Slf4j
 @Component
 public class UsernamePasswordGenerator {
-
-    private final static Logger log = LoggerFactory.getLogger(UsernamePasswordGenerator.class);
 
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     private static final int PASSWORD_LENGTH = 10;

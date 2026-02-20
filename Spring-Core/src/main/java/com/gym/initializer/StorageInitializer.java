@@ -1,10 +1,11 @@
 package com.gym.initializer;
 
-import com.gym.model.*;
+import com.gym.model.Trainee;
+import com.gym.model.Trainer;
+import com.gym.model.Training;
 import com.gym.storage.InMemoryStorage;
 import jakarta.annotation.PostConstruct;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
@@ -12,12 +13,12 @@ import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.time.Duration;
 import java.time.LocalDate;
 
+@Slf4j
 @Component
 public class StorageInitializer {
-
-    private static final Logger log = LoggerFactory.getLogger(StorageInitializer.class);
 
     private InMemoryStorage storage;
 
@@ -35,7 +36,6 @@ public class StorageInitializer {
         this.storage = storage;
     }
 
-    //add logging to each method to indicate when loading starts and ends
 
     @PostConstruct
     public void init() {
@@ -117,7 +117,7 @@ public class StorageInitializer {
                     p[3].trim(), // trainingName
                     p[4].trim(), // trainingType
                     LocalDate.parse(p[5].trim()), // trainingDate
-                    Integer.parseInt(p[6].trim()) // trainingDuration
+                    Duration.ofMinutes(Long.parseLong(p[6].trim())) // trainingDuration
                 );
                 storage.getTrainingStorage().put(id, training);
                 log.debug("Loaded training: {}", training);

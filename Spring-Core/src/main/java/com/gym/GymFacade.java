@@ -6,17 +6,15 @@ import com.gym.model.Training;
 import com.gym.service.TraineeService;
 import com.gym.service.TrainerService;
 import com.gym.service.TrainingService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+@Slf4j
 @Component
 public class GymFacade {
-
-    private static final Logger log = LoggerFactory.getLogger(GymFacade.class);
 
     private final TraineeService traineeService;
     private final TrainerService trainerService;
