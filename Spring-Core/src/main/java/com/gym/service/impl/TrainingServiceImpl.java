@@ -1,11 +1,14 @@
 package com.gym.service.impl;
 
-import com.gym.dao.TrainingDao;
+import com.gym.exception.ValidationException;
 import com.gym.model.Training;
+import com.gym.repository.TrainingRepository;
+import com.gym.service.AuthenticationService;
 import com.gym.service.TrainingService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -14,29 +17,50 @@ import java.util.Optional;
 @Service
 public class TrainingServiceImpl implements TrainingService {
 
-    private TrainingDao dao;
+    private TrainingRepository trainingRepository;
+    private AuthenticationService authService;
 
     @Autowired
-    public void setDao(TrainingDao dao) {
-        this.dao = dao;
+    public void setTrainingRepository(TrainingRepository trainingRepository) { this.trainingRepository = trainingRepository; }
+
+    @Autowired
+    public void setAuthService(AuthenticationService authService) { this.authService = authService; }
+
+    @Override
+    @Transactional
+    public void addTraining(String username, String password, Training training) {
+        authService.authenticate(username, password);
+        validateTraining(training);
+        trainingRepository.save(training);
+        log.info("Training added: {}", training.getTrainingName());
     }
 
     @Override
-    public void createTraining(Training training) {
-        log.debug("Creating training: {}", training);
-        dao.save(training);
-        log.debug("Training created with ID: {}", training.getId());
-    }
-
-    @Override
+    @Transactional(readOnly = true)
     public Optional<Training> getTraining(Long id) {
-        log.debug("Retrieving training with ID: {}", id);
-        return dao.findById(id);
+        log.debug("Fetching training with id: {}", id);
+        return trainingRepository.findById(id);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Training> getAllTrainings() {
-        log.debug("Retrieving all trainings");
-        return dao.findAll();
+        log.debug("Fetching all trainings");
+        return trainingRepository.findAll();
+    }
+
+    private void validateTraining(Training training) {
+        if (training.getTrainingName() == null || training.getTrainingName().isBlank())
+            throw new ValidationException("Training name is required");
+        if (training.getTrainingType() == null)
+            throw new ValidationException("Training type is required");
+        if (training.getTrainingDate() == null)
+            throw new ValidationException("Training date is required");
+        if (training.getTrainingDuration() <= 0)
+            throw new ValidationException("Training duration must be greater than zero");
+        if (training.getTrainee() == null)
+            throw new ValidationException("Trainee is required");
+        if (training.getTrainer() == null)
+            throw new ValidationException("Trainer is required");
     }
 }

@@ -1,13 +1,20 @@
 package com.gym.service.impl;
 
-import com.gym.dao.TraineeDao;
+import com.gym.exception.EntityNotFoundException;
+import com.gym.exception.ValidationException;
 import com.gym.model.Trainee;
+import com.gym.model.Trainer;
+import com.gym.model.Training;
+import com.gym.repository.TraineeRepository;
+import com.gym.service.AuthenticationService;
 import com.gym.service.TraineeService;
 import com.gym.util.UsernamePasswordGenerator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,51 +22,137 @@ import java.util.Optional;
 @Service
 public class TraineeServiceImpl implements TraineeService {
 
-    private TraineeDao dao;
+    private TraineeRepository traineeRepository;
     private UsernamePasswordGenerator generator;
+    private AuthenticationService authService;
 
     @Autowired
-    public void setDao(TraineeDao dao) {
-        this.dao = dao;
-    }
+    public void setTraineeRepository(TraineeRepository traineeRepository) { this.traineeRepository = traineeRepository; }
 
     @Autowired
-    public void setGenerator(UsernamePasswordGenerator generator) {
-        this.generator = generator;
-    }
+    public void setGenerator(UsernamePasswordGenerator generator) { this.generator = generator; }
+
+    @Autowired
+    public void setAuthService(AuthenticationService authService) { this.authService = authService; }
 
     @Override
+    @Transactional
     public void createTrainee(Trainee trainee) {
-        log.debug("Creating trainee: {}", trainee);
-        trainee.setUsername(generator.generateUsername(trainee.getFirstName(), trainee.getLastName(), dao.findAll()));
-        trainee.setPassword(generator.generatePassword());
-        dao.save(trainee);
-        log.debug("Trainee created with username: {}", trainee.getUsername());
+        validateTraineeForCreate(trainee);
+        String username = generator.generateUsername(
+                trainee.getUser().getFirstName(),
+                trainee.getUser().getLastName(),
+                traineeRepository.findAll()
+                        .stream()
+                        .map(t -> t.getUser())
+                        .toList()
+        );
+        trainee.getUser().setUsername(username);
+        trainee.getUser().setPassword(generator.generatePassword());
+        traineeRepository.save(trainee);
+        log.info("Trainee created with username: {}", username);
     }
 
     @Override
-    public void updateTrainee(Trainee trainee) {
-        log.debug("Updating trainee: {}", trainee);
-        dao.update(trainee);
-        log.debug("Trainee with ID {} updated successfully", trainee.getUserID());
+    @Transactional
+    public void updateTrainee(String username, String password, Trainee trainee) {
+        authService.authenticate(username, password);
+        validateTraineeForUpdate(trainee);
+        traineeRepository.save(trainee);
+        log.info("Trainee updated: {}", username);
     }
 
     @Override
-    public void deleteTrainee(Long id) {
-        log.debug("Deleting trainee with ID: {}", id);
-        dao.delete(id);
-        log.debug("Trainee with ID {} deleted successfully", id);
+    @Transactional
+    public void deleteByUsername(String username, String password) {
+        authService.authenticate(username, password);
+        Trainee trainee = traineeRepository.findByUserUsername(username)
+                .orElseThrow(() -> new EntityNotFoundException("Trainee", username));
+        traineeRepository.delete(trainee);
+        log.info("Trainee deleted: {}", username);
     }
 
     @Override
-    public Optional<Trainee> getTrainee(Long id) {
-        log.debug("Retrieving trainee with ID: {}", id);
-        return dao.findById(id);
+    @Transactional(readOnly = true)
+    public Optional<Trainee> getTrainee(String username, String password) {
+        authService.authenticate(username, password);
+        log.debug("Fetching trainee: {}", username);
+        return traineeRepository.findByUserUsername(username);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Trainee> getAllTrainees() {
-        log.debug("Retrieving all trainees");
-        return dao.findAll();
+        log.debug("Fetching all trainees");
+        return traineeRepository.findAll();
+    }
+
+    @Override
+    @Transactional
+    public void changePassword(String username, String oldPassword, String newPassword) {
+        authService.authenticate(username, oldPassword);
+        if (newPassword == null || newPassword.isBlank()) {
+            throw new ValidationException("New password must not be blank");
+        }
+        Trainee trainee = traineeRepository.findByUserUsername(username)
+                .orElseThrow(() -> new EntityNotFoundException("Trainee", username));
+        trainee.getUser().setPassword(newPassword);
+        traineeRepository.save(trainee);
+        log.info("Password changed for trainee: {}", username);
+    }
+
+    @Override
+    @Transactional
+    public void activateDeactivate(String username, String password) {
+        authService.authenticate(username, password);
+        Trainee trainee = traineeRepository.findByUserUsername(username)
+                .orElseThrow(() -> new EntityNotFoundException("Trainee", username));
+        boolean current = trainee.getUser().isActive();
+        trainee.getUser().setActive(!current);
+        traineeRepository.save(trainee);
+        log.info("Trainee {} activation status changed from {} to {}", username, current, !current);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Training> getTrainings(String username, String password, LocalDate fromDate,
+                                       LocalDate toDate, String trainerName, String trainingType) {
+        authService.authenticate(username, password);
+        log.debug("Fetching trainings for trainee: {}", username);
+        return traineeRepository.findTrainings(username, fromDate, toDate, trainerName, trainingType);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Trainer> getUnassignedTrainers(String username, String password) {
+        authService.authenticate(username, password);
+        log.debug("Fetching unassigned trainers for trainee: {}", username);
+        return traineeRepository.getUnassignedTrainers(username);
+    }
+
+    @Override
+    @Transactional
+    public void updateTrainers(String username, String password, List<Trainer> trainers) {
+        authService.authenticate(username, password);
+        Trainee trainee = traineeRepository.findByUserUsername(username)
+                .orElseThrow(() -> new EntityNotFoundException("Trainee", username));
+        trainee.setTrainers(trainers);
+        traineeRepository.save(trainee);
+        log.info("Updated trainers list for trainee: {}", username);
+    }
+
+    private void validateTraineeForCreate(Trainee trainee) {
+        if (trainee.getUser() == null)
+            throw new ValidationException("User must not be null");
+        if (trainee.getUser().getFirstName() == null || trainee.getUser().getFirstName().isBlank())
+            throw new ValidationException("First name is required");
+        if (trainee.getUser().getLastName() == null || trainee.getUser().getLastName().isBlank())
+            throw new ValidationException("Last name is required");
+    }
+
+    private void validateTraineeForUpdate(Trainee trainee) {
+        validateTraineeForCreate(trainee);
+        if (trainee.getId() == null)
+            throw new ValidationException("Trainee id is required for update");
     }
 }
