@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface TrainingService {
-    void createTraining(Training training);
+    void addTraining(String username, String password, Training training);
     Optional<Training> getTraining(Long id);
     List<Training> getAllTrainings();
 }

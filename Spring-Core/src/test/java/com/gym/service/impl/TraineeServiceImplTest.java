@@ -1,7 +1,13 @@
 package com.gym.service.impl;
 
-import com.gym.dao.TraineeDao;
+import com.gym.exception.AuthenticationException;
+import com.gym.exception.EntityNotFoundException;
+import com.gym.exception.ValidationException;
 import com.gym.model.Trainee;
+import com.gym.model.Trainer;
+import com.gym.model.User;
+import com.gym.repository.TraineeRepository;
+import com.gym.service.AuthenticationService;
 import com.gym.util.UsernamePasswordGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,89 +24,231 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class TraineeServiceImplTest {
 
-    @Mock private TraineeDao dao;
-    @Mock private UsernamePasswordGenerator generator;
+    @Mock
+    private TraineeRepository repository;
+
+    @Mock
+    private UsernamePasswordGenerator generator;
+
+    @Mock
+    private AuthenticationService authService;
 
     private TraineeServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new TraineeServiceImpl();
-        service.setDao(dao);
+        service.setTraineeRepository(repository);
         service.setGenerator(generator);
+        service.setAuthService(authService);
+    }
+
+    private Trainee traineeWithUser(String username, String password) {
+        User user = new User();
+        user.setFirstName("John");
+        user.setLastName("Smith");
+        user.setUsername(username);
+        user.setPassword(password);
+        user.setActive(true);
+        Trainee trainee = new Trainee();
+        trainee.setUser(user);
+        return trainee;
     }
 
     @Test
     void createTrainee_setsUsernameAndPassword() {
-        Trainee trainee = new Trainee();
-        trainee.setFirstName("John");
-        trainee.setLastName("Smith");
-
-        when(dao.findAll()).thenReturn(List.of());
-        when(generator.generateUsername("John", "Smith", List.of())).thenReturn("John.Smith");
-        when(generator.generatePassword()).thenReturn("pass123abc");
-
-        service.createTrainee(trainee);
-
-        assertEquals("John.Smith", trainee.getUsername());
-        assertEquals("pass123abc", trainee.getPassword());
-    }
-
-    @Test
-    void createTrainee_callsDaoSave() {
-        Trainee trainee = new Trainee();
-        trainee.setFirstName("John");
-        trainee.setLastName("Smith");
-
-        when(dao.findAll()).thenReturn(List.of());
+        Trainee trainee = traineeWithUser(null, null);
+        when(repository.findAll()).thenReturn(List.of());
         when(generator.generateUsername(any(), any(), any())).thenReturn("John.Smith");
         when(generator.generatePassword()).thenReturn("pass123abc");
 
         service.createTrainee(trainee);
 
-        verify(dao).save(trainee);
+        assertEquals("John.Smith", trainee.getUser().getUsername());
+        assertEquals("pass123abc", trainee.getUser().getPassword());
+        verify(repository).save(trainee);
     }
 
     @Test
-    void updateTrainee_callsDaoUpdate() {
+    void createTrainee_missingFirstName_throwsValidationException() {
         Trainee trainee = new Trainee();
-        service.updateTrainee(trainee);
-        verify(dao).update(trainee);
+        User user = new User();
+        user.setLastName("Smith");
+        trainee.setUser(user);
+
+        assertThrows(ValidationException.class, () -> service.createTrainee(trainee));
     }
 
     @Test
-    void deleteTrainee_callsDaoDelete() {
-        service.deleteTrainee(1L);
-        verify(dao).delete(1L);
+    void createTrainee_nullUser_throwsValidationException() {
+        assertThrows(ValidationException.class, () -> service.createTrainee(new Trainee()));
     }
 
     @Test
-    void getTrainee_returnsResultFromDao() {
-        Trainee trainee = new Trainee();
-        when(dao.findById(1L)).thenReturn(Optional.of(trainee));
+    void updateTrainee_authenticatesAndUpdates() {
+        Trainee trainee = traineeWithUser("John.Smith", "pass");
+        trainee.setId(1L);
+        doNothing().when(authService).authenticate("John.Smith", "pass");
 
-        Optional<Trainee> result = service.getTrainee(1L);
+        service.updateTrainee("John.Smith", "pass", trainee);
+
+        verify(authService).authenticate("John.Smith", "pass");
+        verify(repository).save(trainee);
+    }
+
+    @Test
+    void updateTrainee_authFails_throwsAuthenticationException() {
+        Trainee trainee = traineeWithUser("John.Smith", "pass");
+        trainee.setId(1L);
+        doThrow(new AuthenticationException("John.Smith"))
+                .when(authService).authenticate("John.Smith", "wrong");
+
+        assertThrows(AuthenticationException.class,
+                () -> service.updateTrainee("John.Smith", "wrong", trainee));
+    }
+
+    @Test
+    void updateTrainee_missingId_throwsValidationException() {
+        Trainee trainee = traineeWithUser("John.Smith", "pass");
+        doNothing().when(authService).authenticate("John.Smith", "pass");
+
+        assertThrows(ValidationException.class,
+                () -> service.updateTrainee("John.Smith", "pass", trainee));
+    }
+
+    @Test
+    void deleteByUsername_authenticatesAndDeletes() {
+        Trainee trainee = traineeWithUser("John.Smith", "pass");
+        doNothing().when(authService).authenticate("John.Smith", "pass");
+        when(repository.findByUserUsername("John.Smith")).thenReturn(Optional.of(trainee));
+
+        service.deleteByUsername("John.Smith", "pass");
+
+        verify(repository).delete(trainee);
+    }
+
+    @Test
+    void deleteByUsername_notFound_throwsEntityNotFoundException() {
+        doNothing().when(authService).authenticate("nobody", "pass");
+        when(repository.findByUserUsername("nobody")).thenReturn(Optional.empty());
+
+        assertThrows(EntityNotFoundException.class,
+                () -> service.deleteByUsername("nobody", "pass"));
+    }
+
+    @Test
+    void getTrainee_returnsTrainee() {
+        Trainee trainee = traineeWithUser("John.Smith", "pass");
+        doNothing().when(authService).authenticate("John.Smith", "pass");
+        when(repository.findByUserUsername("John.Smith")).thenReturn(Optional.of(trainee));
+
+        Optional<Trainee> result = service.getTrainee("John.Smith", "pass");
 
         assertTrue(result.isPresent());
-        assertEquals(trainee, result.get());
     }
 
     @Test
-    void getTrainee_notExists_returnsEmpty() {
-        when(dao.findById(999L)).thenReturn(Optional.empty());
+    void getTrainee_notFound_returnsEmpty() {
+        doNothing().when(authService).authenticate("nobody", "pass");
+        when(repository.findByUserUsername("nobody")).thenReturn(Optional.empty());
 
-        Optional<Trainee> result = service.getTrainee(999L);
+        Optional<Trainee> result = service.getTrainee("nobody", "pass");
 
         assertFalse(result.isPresent());
     }
 
     @Test
-    void getAllTrainees_returnsResultFromDao() {
-        List<Trainee> trainees = List.of(new Trainee(), new Trainee());
-        when(dao.findAll()).thenReturn(trainees);
+    void getAllTrainees_returnsAll() {
+        when(repository.findAll()).thenReturn(List.of(new Trainee(), new Trainee()));
 
         List<Trainee> result = service.getAllTrainees();
 
         assertEquals(2, result.size());
+    }
+
+    @Test
+    void changePassword_updatesPassword() {
+        Trainee trainee = traineeWithUser("John.Smith", "oldPass");
+        doNothing().when(authService).authenticate("John.Smith", "oldPass");
+        when(repository.findByUserUsername("John.Smith")).thenReturn(Optional.of(trainee));
+
+        service.changePassword("John.Smith", "oldPass", "newPass");
+
+        assertEquals("newPass", trainee.getUser().getPassword());
+        verify(repository).save(trainee);
+    }
+
+    @Test
+    void changePassword_blankNewPassword_throwsValidationException() {
+        doNothing().when(authService).authenticate("John.Smith", "oldPass");
+
+        assertThrows(ValidationException.class,
+                () -> service.changePassword("John.Smith", "oldPass", ""));
+    }
+
+    @Test
+    void changePassword_notFound_throwsEntityNotFoundException() {
+        doNothing().when(authService).authenticate("nobody", "pass");
+        when(repository.findByUserUsername("nobody")).thenReturn(Optional.empty());
+
+        assertThrows(EntityNotFoundException.class,
+                () -> service.changePassword("nobody", "pass", "newPass"));
+    }
+
+    @Test
+    void activateDeactivate_togglesStatus() {
+        Trainee trainee = traineeWithUser("John.Smith", "pass");
+        trainee.getUser().setActive(true);
+        doNothing().when(authService).authenticate("John.Smith", "pass");
+        when(repository.findByUserUsername("John.Smith")).thenReturn(Optional.of(trainee));
+
+        service.activateDeactivate("John.Smith", "pass");
+
+        assertFalse(trainee.getUser().isActive());
+        verify(repository).save(trainee);
+    }
+
+    @Test
+    void activateDeactivate_notFound_throwsEntityNotFoundException() {
+        doNothing().when(authService).authenticate("nobody", "pass");
+        when(repository.findByUserUsername("nobody")).thenReturn(Optional.empty());
+
+        assertThrows(EntityNotFoundException.class,
+                () -> service.activateDeactivate("nobody", "pass"));
+    }
+
+    @Test
+    void getTrainings_delegatesToRepository() {
+        doNothing().when(authService).authenticate("John.Smith", "pass");
+        when(repository.findTrainings("John.Smith", null, null, null, null))
+                .thenReturn(List.of());
+
+        List<?> result = service.getTrainings("John.Smith", "pass",
+                null, null, null, null);
+
+        assertNotNull(result);
+        verify(repository).findTrainings("John.Smith", null, null, null, null);
+    }
+
+    @Test
+    void getUnassignedTrainers_delegatesToRepository() {
+        doNothing().when(authService).authenticate("John.Smith", "pass");
+        when(repository.getUnassignedTrainers("John.Smith")).thenReturn(List.of());
+
+        List<Trainer> result = service.getUnassignedTrainers("John.Smith", "pass");
+
+        assertNotNull(result);
+        verify(repository).getUnassignedTrainers("John.Smith");
+    }
+
+    @Test
+    void updateTrainers_updatesTraineeTrainers() {
+        Trainee trainee = traineeWithUser("John.Smith", "pass");
+        doNothing().when(authService).authenticate("John.Smith", "pass");
+        when(repository.findByUserUsername("John.Smith")).thenReturn(Optional.of(trainee));
+
+        service.updateTrainers("John.Smith", "pass", List.of());
+
+        verify(repository).save(trainee);
     }
 }

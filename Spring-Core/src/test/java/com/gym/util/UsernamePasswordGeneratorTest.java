@@ -1,6 +1,7 @@
 package com.gym.util;
 
 import com.gym.model.Trainee;
+import com.gym.model.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -17,6 +18,14 @@ class UsernamePasswordGeneratorTest {
         generator = new UsernamePasswordGenerator();
     }
 
+    private Trainee traineeWithUsername(String username) {
+        User user = new User();
+        user.setUsername(username);
+        Trainee trainee = new Trainee();
+        trainee.setUser(user);
+        return trainee;
+    }
+
     @Test
     void generateUsername_noExisting_returnsBase() {
         String username = generator.generateUsername("John", "Smith", List.of());
@@ -25,30 +34,23 @@ class UsernamePasswordGeneratorTest {
 
     @Test
     void generateUsername_oneDuplicate_returnsSuffixOne() {
-        Trainee existing = new Trainee();
-        existing.setUsername("John.Smith");
-
-        String username = generator.generateUsername("John", "Smith", List.of(existing));
+        String username = generator.generateUsername("John", "Smith",
+                List.of(traineeWithUsername("John.Smith")));
         assertEquals("John.Smith1", username);
     }
 
     @Test
     void generateUsername_twoDuplicates_returnsSuffixTwo() {
-        Trainee existing1 = new Trainee();
-        existing1.setUsername("John.Smith");
-        Trainee existing2 = new Trainee();
-        existing2.setUsername("John.Smith1");
-
-        String username = generator.generateUsername("John", "Smith", List.of(existing1, existing2));
+        String username = generator.generateUsername("John", "Smith",
+                List.of(traineeWithUsername("John.Smith"),
+                        traineeWithUsername("John.Smith1")));
         assertEquals("John.Smith2", username);
     }
 
     @Test
     void generateUsername_differentName_noSuffix() {
-        Trainee existing = new Trainee();
-        existing.setUsername("Jane.Doe");
-
-        String username = generator.generateUsername("John", "Smith", List.of(existing));
+        String username = generator.generateUsername("John", "Smith",
+                List.of(traineeWithUsername("Jane.Doe")));
         assertEquals("John.Smith", username);
     }
 

@@ -1,5 +1,7 @@
 package com.gym.util;
 
+import com.gym.model.Trainee;
+import com.gym.model.Trainer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -33,9 +35,16 @@ public class UsernamePasswordGenerator {
     }
 
     private String getUsernameFrom(Object entity) {
-        log.debug("Extracting username from entity: {}", entity);
         if (entity instanceof com.gym.model.User user) {
             return user.getUsername() != null ? user.getUsername() : "";
+        }
+        if (entity instanceof Trainee trainee && trainee.getUser() != null) {
+            return trainee.getUser().getUsername() != null
+                    ? trainee.getUser().getUsername() : "";
+        }
+        if (entity instanceof Trainer trainer && trainer.getUser() != null) {
+            return trainer.getUser().getUsername() != null
+                    ? trainer.getUser().getUsername() : "";
         }
         return "";
     }

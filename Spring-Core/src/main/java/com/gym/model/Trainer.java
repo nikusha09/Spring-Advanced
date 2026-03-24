@@ -1,22 +1,44 @@
 package com.gym.model;
 
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import lombok.ToString;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
 @NoArgsConstructor
-@ToString(callSuper = true)
-public class Trainer extends User {
+@Entity
+@Table(name = "trainers")
+public class Trainer {
 
-    private String specialization;
-    private Long userID;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    public Trainer(String firstName, String lastName, String username, String password, boolean isActive, String specialization, Long userID) {
-        super(firstName, lastName, null, null, isActive);
-        this.specialization = specialization;
-        this.userID = userID;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "specialization_id", nullable = false)
+    private TrainingType specialization;
+
+    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    @ManyToMany(mappedBy = "trainers", fetch = FetchType.LAZY)
+    private List<Trainee> trainees = new ArrayList<>();
+
+    @OneToMany(mappedBy = "trainer", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Training> trainings = new ArrayList<>();
+
+    @Override
+    public String toString() {
+        return "Trainer{" +
+                "id=" + id +
+                ", specialization=" + specialization +
+                ", user=" + user +
+                '}';
     }
 }
