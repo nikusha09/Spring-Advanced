@@ -2,7 +2,7 @@
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} [txId=%X{transactionId}] - %msg%n</pattern>
         </encoder>
     </appender>
 
@@ -13,17 +13,15 @@
             <maxHistory>30</maxHistory>
         </rollingPolicy>
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} [txId=%X{transactionId}] - %msg%n</pattern>
         </encoder>
     </appender>
 
-    <!-- Internal application logs at DEBUG -->
     <logger name="com.gym" level="DEBUG" additivity="false">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="FILE"/>
     </logger>
 
-    <!-- Spring framework logs at WARN to reduce noise -->
     <logger name="org.springframework" level="WARN"/>
 
     <root level="INFO">
