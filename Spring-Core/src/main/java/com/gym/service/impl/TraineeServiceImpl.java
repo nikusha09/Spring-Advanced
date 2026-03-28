@@ -6,7 +6,6 @@ import com.gym.model.Trainee;
 import com.gym.model.Trainer;
 import com.gym.model.Training;
 import com.gym.repository.TraineeRepository;
-import com.gym.service.AuthenticationService;
 import com.gym.service.TraineeService;
 import com.gym.util.UsernamePasswordGenerator;
 import lombok.extern.slf4j.Slf4j;
@@ -24,16 +23,12 @@ public class TraineeServiceImpl implements TraineeService {
 
     private TraineeRepository traineeRepository;
     private UsernamePasswordGenerator generator;
-    private AuthenticationService authService;
 
     @Autowired
     public void setTraineeRepository(TraineeRepository traineeRepository) { this.traineeRepository = traineeRepository; }
 
     @Autowired
     public void setGenerator(UsernamePasswordGenerator generator) { this.generator = generator; }
-
-    @Autowired
-    public void setAuthService(AuthenticationService authService) { this.authService = authService; }
 
     @Override
     @Transactional
@@ -55,17 +50,15 @@ public class TraineeServiceImpl implements TraineeService {
 
     @Override
     @Transactional
-    public void updateTrainee(String username, String password, Trainee trainee) {
-        authService.authenticate(username, password);
+    public void updateTrainee(Trainee trainee) {
         validateTraineeForUpdate(trainee);
         traineeRepository.save(trainee);
-        log.info("Trainee updated: {}", username);
+        log.info("Trainee updated: {}", trainee.getUser().getUsername());
     }
 
     @Override
     @Transactional
-    public void deleteByUsername(String username, String password) {
-        authService.authenticate(username, password);
+    public void deleteByUsername(String username) {
         Trainee trainee = traineeRepository.findByUserUsername(username)
                 .orElseThrow(() -> new EntityNotFoundException("Trainee", username));
         traineeRepository.delete(trainee);
@@ -74,8 +67,7 @@ public class TraineeServiceImpl implements TraineeService {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<Trainee> getTrainee(String username, String password) {
-        authService.authenticate(username, password);
+    public Optional<Trainee> getTrainee(String username) {
         log.debug("Fetching trainee: {}", username);
         return traineeRepository.findByUserUsername(username);
     }
@@ -90,7 +82,6 @@ public class TraineeServiceImpl implements TraineeService {
     @Override
     @Transactional
     public void changePassword(String username, String oldPassword, String newPassword) {
-        authService.authenticate(username, oldPassword);
         if (newPassword == null || newPassword.isBlank()) {
             throw new ValidationException("New password must not be blank");
         }
@@ -103,37 +94,32 @@ public class TraineeServiceImpl implements TraineeService {
 
     @Override
     @Transactional
-    public void activateDeactivate(String username, String password) {
-        authService.authenticate(username, password);
+    public void activateDeactivate(String username, Boolean isActive) {
         Trainee trainee = traineeRepository.findByUserUsername(username)
                 .orElseThrow(() -> new EntityNotFoundException("Trainee", username));
-        boolean current = trainee.getUser().isActive();
-        trainee.getUser().setActive(!current);
+        trainee.getUser().setActive(isActive);
         traineeRepository.save(trainee);
-        log.info("Trainee {} activation status changed from {} to {}", username, current, !current);
+        log.info("Trainee {} activation status changed to {}", username, isActive);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<Training> getTrainings(String username, String password, LocalDate fromDate,
+    public List<Training> getTrainings(String username, LocalDate fromDate,
                                        LocalDate toDate, String trainerName, String trainingType) {
-        authService.authenticate(username, password);
         log.debug("Fetching trainings for trainee: {}", username);
         return traineeRepository.findTrainings(username, fromDate, toDate, trainerName, trainingType);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<Trainer> getUnassignedTrainers(String username, String password) {
-        authService.authenticate(username, password);
+    public List<Trainer> getUnassignedTrainers(String username) {
         log.debug("Fetching unassigned trainers for trainee: {}", username);
         return traineeRepository.getUnassignedTrainers(username);
     }
 
     @Override
     @Transactional
-    public void updateTrainers(String username, String password, List<Trainer> trainers) {
-        authService.authenticate(username, password);
+    public void updateTrainers(String username, List<Trainer> trainers) {
         Trainee trainee = traineeRepository.findByUserUsername(username)
                 .orElseThrow(() -> new EntityNotFoundException("Trainee", username));
         trainee.setTrainers(trainers);

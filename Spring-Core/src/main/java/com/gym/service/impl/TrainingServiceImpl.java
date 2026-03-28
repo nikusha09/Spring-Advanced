@@ -3,7 +3,6 @@ package com.gym.service.impl;
 import com.gym.exception.ValidationException;
 import com.gym.model.Training;
 import com.gym.repository.TrainingRepository;
-import com.gym.service.AuthenticationService;
 import com.gym.service.TrainingService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,18 +17,13 @@ import java.util.Optional;
 public class TrainingServiceImpl implements TrainingService {
 
     private TrainingRepository trainingRepository;
-    private AuthenticationService authService;
 
     @Autowired
     public void setTrainingRepository(TrainingRepository trainingRepository) { this.trainingRepository = trainingRepository; }
 
-    @Autowired
-    public void setAuthService(AuthenticationService authService) { this.authService = authService; }
-
     @Override
     @Transactional
-    public void addTraining(String username, String password, Training training) {
-        authService.authenticate(username, password);
+    public void addTraining(Training training) {
         validateTraining(training);
         trainingRepository.save(training);
         log.info("Training added: {}", training.getTrainingName());
