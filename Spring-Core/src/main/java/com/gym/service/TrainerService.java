@@ -9,10 +9,10 @@ import java.util.Optional;
 
 public interface TrainerService {
     void createTrainer(Trainer trainer);
-    void updateTrainer(String username, String password, Trainer trainer);
-    Optional<Trainer> getTrainer(String username, String password);
+    void updateTrainer(Trainer trainer);
+    Optional<Trainer> getTrainer(String username);
     List<Trainer> getAllTrainers();
     void changePassword(String username, String oldPassword, String newPassword);
-    void activateDeactivate(String username, String password);
-    List<Training> getTrainings(String username, String password, LocalDate fromDate, LocalDate toDate, String traineeName);
+    void activateDeactivate(String username, Boolean isActive);
+    List<Training> getTrainings(String username, LocalDate fromDate, LocalDate toDate, String traineeName);
 }
